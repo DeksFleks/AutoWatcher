@@ -31,7 +31,7 @@ public class TelegramOutboxDispatcher {
             int attempts=((Number)event.get("attempts")).intValue()+1;
             try {
                 api.send(owner,"Новое объявление: "+event.get("profile_name")+"\n"+event.get("title")+
-                    "\nЦена: "+event.get("price")+" ₽\n"+event.get("url")+"\nСобытие: "+id);
+                    "\nЦена: "+(event.get("price")==null?"не указана":event.get("price")+" ₽")+"\n"+event.get("url")+"\nСобытие: "+id);
                 jdbc.update("""
                     UPDATE notification_outbox SET status='DELIVERED',delivered_at=?,attempts=?,error_code=NULL
                     WHERE id=? AND status='PENDING'

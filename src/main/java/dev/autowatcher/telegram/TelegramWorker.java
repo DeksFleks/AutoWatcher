@@ -21,16 +21,23 @@ public class TelegramWorker {
     }
     @Scheduled(fixedDelay=1000,initialDelay=5000)
     public void poll() {
-        if(settings.get("telegram_token").isEmpty() || nextPoll.isAfter(Instant.now())) return;
+        String token=settings.get("telegram_token","");
+        if(token.isEmpty() || nextPoll.isAfter(Instant.now())) return;
         try {
             var updates=api.call("getUpdates",Map.of("offset",Long.parseLong(settings.get("telegram_offset","0")),
                 "timeout",15,"limit",20,"allowed_updates",java.util.List.of("message")));
             for(var update:updates) {
+                if(!token.equals(settings.get("telegram_token",""))) return;
                 try { commands.accept(update); }
                 catch(RuntimeException e) { commands.reject(update); }
             }
             settings.set("telegram_status",settings.get("telegram_owner").isPresent()?"Подключён":"Ожидается привязка владельца");
-        } catch(TelegramApi.Failure e) { nextPoll=Instant.now().plusSeconds(e.retrySeconds()); settings.set("telegram_status",e.getMessage()); }
+        } catch(TelegramApi.Failure e) { nextPoll=Instant.now().plusSeconds(e.retrySeconds()); settings.set("telegram_status",switch(e.getMessage()) {
+                case "TELEGRAM_401" -> "Telegram отклонил токен. Проверь его в настройках.";
+                case "TELEGRAM_409" -> "Этот бот уже используется другим приложением или webhook.";
+                case "TELEGRAM_429" -> "Telegram ограничил частоту. Повторим после паузы.";
+                default -> "Нет соединения с Telegram. Повторим автоматически.";
+            }); }
         catch(RuntimeException e) { settings.set("telegram_status","Ошибка обработки команд"); }
     }
     @Scheduled(fixedDelay=3000,initialDelay=5000)

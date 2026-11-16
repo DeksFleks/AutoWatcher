@@ -102,7 +102,7 @@ public class ListingPageParser {
         } catch(Exception e) { return null; }
     }
     private String externalId(URI uri) {
-        Matcher matcher=Pattern.compile("(?:_|/)([0-9]{5,})(?:[a-zA-Z-]*)/?$").matcher(uri.getPath());
+        Matcher matcher=Pattern.compile("(?:_|/)([0-9]{5,})(?:-[a-zA-Z0-9]+)?/?$").matcher(uri.getPath());
         return matcher.find()?matcher.group(1):uri.getPath();
     }
     private Long money(String text) {

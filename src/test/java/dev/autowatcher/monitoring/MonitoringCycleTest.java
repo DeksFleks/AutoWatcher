@@ -37,6 +37,8 @@ class MonitoringCycleTest {
     @Autowired ListingRetentionService retention;
     @Autowired TestOutboxDispatcher dispatcher;
     @Autowired JdbcTemplate jdbc;
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    dev.autowatcher.source.http.PublicPageClient publicPages;
 
     @BeforeEach void reset() {
         for (String table : List.of("test_notification_receipts", "notification_outbox",
@@ -127,11 +129,14 @@ class MonitoringCycleTest {
     }
 
     @Test void sourceFailureIsRecorded() {
+        org.mockito.Mockito.when(publicPages.get(org.mockito.ArgumentMatchers.any()))
+            .thenThrow(new dev.autowatcher.source.api.SourceException("NETWORK_ERROR: controlled fixture"));
         var profile = profiles.create(new CreateSearchProfileCommand("Unavailable",
             criteria(), Set.of(SourceType.AVITO)));
         var runs = monitoring.check(profile.id());
         assertEquals("FAILED", runs.getFirst().status());
         assertNotNull(runs.getFirst().finishedAt());
+        org.mockito.Mockito.verify(publicPages).get(URI.create("https://www.avito.ru/rossiya/avtomobili"));
         assertEquals(0, count("notification_outbox"));
     }
 

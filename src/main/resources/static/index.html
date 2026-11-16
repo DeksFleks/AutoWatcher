@@ -23,11 +23,11 @@
 <label>Цена от, ₽<input name="priceFrom" type="number" min="0" step="1"></label><label>Цена до, ₽<input name="priceTo" type="number" min="0" step="1"></label>
 <label>Пробег до, км<input name="mileageTo" type="number" min="0"></label><label>Регион<input name="region" placeholder="Москва"></label>
 <fieldset class="wide"><legend>Площадки</legend><label class="inline"><input name="source" type="checkbox" value="AVITO"> Авито</label><label class="inline"><input name="source" type="checkbox" value="AUTO_RU"> Авто.ру</label><label id="fake-option" class="inline" hidden><input name="source" type="checkbox" value="FAKE"> Демо-источник</label></fieldset>
-<label class="wide">Ссылка поиска на Авито<input name="avitoUrl" type="url" placeholder="https://www.avito.ru/…"></label>
-<label class="wide">Ссылка поиска на Авто.ру<input name="autoRuUrl" type="url" placeholder="https://auto.ru/…"></label>
+<label class="wide">Ссылка поиска на Авито (необязательно)<input name="avitoUrl" type="url" placeholder="https://www.avito.ru/…"></label>
+<label class="wide">Ссылка поиска на Авто.ру (необязательно)<input name="autoRuUrl" type="url" placeholder="https://auto.ru/…"></label>
 <label>Интервал, минут<input name="intervalMinutes" type="number" min="1" max="1440" value="5" required></label>
 <label class="inline"><input name="scheduled" type="checkbox"> Проверять автоматически</label>
-</div><p class="muted">Если площадка не отдаёт нужный параметр, результат будет «Недостаточно данных». Проверка доступа или изменение страницы появятся в истории.</p>
+</div><p class="muted">Без ссылки используется общая выдача площадки; свои ссылки помогут сузить поиск. Если площадка не отдаёт нужный параметр, результат будет «Недостаточно данных». Проверка доступа или изменение страницы появятся в истории.</p>
 <div class="actions"><button class="primary" type="submit">Сохранить фильтр</button><button type="button" id="cancel-edit">Отмена</button></div>
 </form></section>
 <section id="results" class="panel" hidden><div class="section-heading"><label>Фильтр<select id="results-profile"></select></label><button id="check-selected" class="primary">Проверить сейчас</button></div><div id="result-list"></div></section>

@@ -53,7 +53,8 @@ public class ProfileMonitoringService {
         if (type == SourceType.FAKE) return null;
         var config = get(id);
         String value = type == SourceType.AVITO ? config.avitoUrl() : config.autoRuUrl();
-        if (value == null) throw new IllegalArgumentException("Укажи ссылку на поиск для " + type);
+        if (value == null) value = type == SourceType.AVITO
+            ? "https://www.avito.ru/rossiya/avtomobili" : "https://auto.ru/cars/used/";
         return URI.create(value);
     }
     public static String validateUrl(String value, SourceType type) {

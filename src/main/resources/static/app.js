@@ -60,7 +60,6 @@ async function saveProfile(event){
     const config={intervalSeconds:Math.round(Number(form.elements.intervalMinutes.value)*60),scheduled:form.elements.scheduled.checked,
       avitoUrl:form.elements.avitoUrl.value.trim()||null,autoRuUrl:form.elements.autoRuUrl.value.trim()||null};
     for(const [source,key,host]of [["AVITO","avitoUrl","avito.ru"],["AUTO_RU","autoRuUrl","auto.ru"]]){
-      if(sources.includes(source)&&!config[key])throw new Error("Добавь ссылку поиска для "+source);
       if(config[key]){const u=new URL(config[key]);if(u.protocol!=="https:"||![host,"www."+host].includes(u.hostname)||u.port||u.username)throw new Error("Проверь ссылку "+source);}
     }
     const id=form.elements.id.value;const profile=await api("/profiles"+(id?"/"+id:""),id?"PUT":"POST",{name:form.elements.name.value.trim(),criteria,sources});

@@ -1,7 +1,7 @@
 name: Verify
 on:
   push:
-    branches: [main, 'codex/**']
+    branches: [main]
   pull_request:
 permissions:
   contents: read
@@ -28,6 +28,17 @@ jobs:
         run: .\mvnw.cmd -B -ntp clean verify
       - name: Smoke test packaged Spring Boot app
         run: python .github/scripts/smoke.py
+      - name: Verify live Auto.ru parser without bypassing access restrictions
+        if: runner.os == 'Linux'
+        run: python .github/scripts/live_probe.py
+      - name: Upload live parser diagnostics
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-parser-diagnostics
+          path: |
+            target/live-source-probe.json
+            target/live-probe-application.log
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

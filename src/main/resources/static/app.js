@@ -88,7 +88,7 @@ async function refreshHistory(){
   if(runs.length)table($("run-list"),["Когда","Площадка","Статус","Подробности"],runs.map(r=>[new Date(r.started_at).toLocaleString("ru"),r.source,badge(r.status),r.error_message||""]));else empty($("run-list"),"Проверок пока нет");
   table($("outbox-list"),["Канал","Статус","Попыток","Подробности"],outbox.map(o=>[o.channel,badge(o.status),o.attempts,o.error_code||""]));
 }
-async function refreshSettings(){const s=await api("/settings");$("telegram-status").textContent=(s.telegramConfigured?"Токен сохранён. ":"")+s.telegramStatus;$("retention-form").elements.days.value=s.retentionDays;}
+async function refreshSettings(includeRetention=true){const s=await api("/settings");$("telegram-status").textContent=(s.telegramConfigured?"Токен сохранён. ":"")+s.telegramStatus;if(includeRetention)$("retention-form").elements.days.value=s.retentionDays;}
 function showPair(value){$("pair-command").textContent=value.command;$("pairing").hidden=false;notice("Токен сохранён. Отправь команду своему боту.");}
 async function switchTab(tab){currentTab=tab;for(const section of document.querySelectorAll(".panel"))section.hidden=section.id!==tab;for(const b of document.querySelectorAll("nav button"))b.classList.toggle("active",b.dataset.tab===tab);
   const titles={profiles:"Фильтры поиска",results:"Объявления",history:"История проверок",settings:"Настройки"};$("page-title").textContent=titles[tab];
@@ -105,4 +105,4 @@ $("disconnect-telegram").addEventListener("click",()=>action(async()=>{await api
 $("copy-pair").addEventListener("click",()=>action(async()=>{await navigator.clipboard.writeText($("pair-command").textContent);notice("Команда скопирована");}));
 $("retention-form").addEventListener("submit",e=>{e.preventDefault();action(async()=>{await api("/settings/retention","PUT",{days:Number(e.target.elements.days.value)});notice("Срок хранения сохранён");});});
 action(async()=>{const session=await api("/session");csrf=session.csrfToken;demo=session.demo;$("fake-option").hidden=!demo;await refreshProfiles();$("connection").textContent=demo?"ДЕМО-РЕЖИМ":"ЛОКАЛЬНО";});
-setInterval(()=>action(async()=>{if(currentTab==="results")await refreshResults();if(currentTab==="history")await refreshHistory();if(currentTab==="settings")await refreshSettings();}),5000);
+setInterval(()=>action(async()=>{if($("profile-form").hidden)await refreshProfiles();if(currentTab==="results")await refreshResults();if(currentTab==="history")await refreshHistory();if(currentTab==="settings")await refreshSettings(false);}),5000);

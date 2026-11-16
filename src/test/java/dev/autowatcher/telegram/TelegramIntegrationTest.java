@@ -103,6 +103,22 @@ class TelegramIntegrationTest {
         assertThrows(IllegalArgumentException.class,()->monitoring.save(p.id(),new ProfileMonitoringService.Configuration(300,true,"https://avito.ru.evil.test/x",null,null)));
         assertThrows(IllegalArgumentException.class,()->ProfileMonitoringService.validateUrl("https://avito.ru@evil.test/x",SourceType.AVITO));
     }
+    @Test void pollingQueuesDurableReplyAndRetriesTransportFailure() throws Exception {
+        String start=connection.configure("123456:abcdefghijklmnopqrstuvwxyz0123456789").get("command").toString();
+        when(api.call(eq("getUpdates"),anyMap())).thenReturn(json.createArrayNode().add(update(100,"100",start)));
+        var worker=new TelegramWorker(api,settings,commands,jdbc);
+        worker.poll();
+        assertEquals("100",settings.get("telegram_owner",""));
+        assertEquals("101",settings.get("telegram_offset",""));
+        doThrow(new TelegramApi.Failure("TELEGRAM_NETWORK_ERROR",30)).when(api).send(anyString(),anyString());
+        worker.replies();
+        assertEquals(1,jdbc.queryForObject("SELECT attempts FROM telegram_replies",Integer.class));
+        assertEquals("PENDING",jdbc.queryForObject("SELECT status FROM telegram_replies",String.class));
+        jdbc.update("UPDATE telegram_replies SET next_attempt_at=?",Instant.EPOCH.toString());
+        doNothing().when(api).send(anyString(),anyString());
+        worker.replies();
+        assertEquals("DELIVERED",jdbc.queryForObject("SELECT status FROM telegram_replies",String.class));
+    }
     private JsonNode update(long id,String owner,String text) throws Exception {
         return json.valueToTree(Map.of("update_id",id,"message",Map.of("chat",Map.of("id",owner,"type","private"),
             "from",Map.of("id",owner),"text",text)));

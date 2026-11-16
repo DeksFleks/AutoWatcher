@@ -3,6 +3,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
@@ -29,10 +30,10 @@ jobs:
       - name: Smoke test packaged Spring Boot app
         run: python .github/scripts/smoke.py
       - name: Verify live Auto.ru parser without bypassing access restrictions
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && github.event_name == 'workflow_dispatch'
         run: python .github/scripts/live_probe.py
       - name: Upload live parser diagnostics
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: live-parser-diagnostics
@@ -77,6 +78,7 @@ jobs:
           path: target/surefire-reports/
           if-no-files-found: ignore
   source-access:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:

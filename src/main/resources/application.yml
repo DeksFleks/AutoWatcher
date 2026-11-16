@@ -5,6 +5,9 @@ server:
 spring:
   application:
     name: autowatcher
+  mvc:
+    problemdetails:
+      enabled: true
   datasource:
     url: jdbc:sqlite:${AUTOWATCHER_DB:${autowatcher.data-dir:./data}/autowatcher.db}
     driver-class-name: org.sqlite.JDBC

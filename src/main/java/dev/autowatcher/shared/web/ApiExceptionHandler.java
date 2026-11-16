@@ -22,6 +22,11 @@ public class ApiExceptionHandler {
     public ResponseEntity<ProblemDetail> malformed(Exception e) {
         return problem(HttpStatus.BAD_REQUEST, "Invalid request body or parameter");
     }
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<ProblemDetail> unexpected(RuntimeException e) {
+        org.slf4j.LoggerFactory.getLogger(ApiExceptionHandler.class).error("Application request failed",e);
+        return problem(HttpStatus.INTERNAL_SERVER_ERROR,"Внутренняя ошибка приложения. Подробности в журнале.");
+    }
     private ResponseEntity<ProblemDetail> problem(HttpStatus status, String detail) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
         return ResponseEntity.status(status).body(problem);

@@ -1,21 +1,29 @@
 package dev.autowatcher.shared.web;
 
 import dev.autowatcher.search.application.ProfileNotFoundException;
-import java.util.Map;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
     @ExceptionHandler(ProfileNotFoundException.class)
-    public ResponseEntity<Map<String, String>> notFound(ProfileNotFoundException e) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
+    public ResponseEntity<ProblemDetail> notFound(ProfileNotFoundException e) {
+        return problem(HttpStatus.NOT_FOUND, "Profile not found");
     }
-    @ExceptionHandler({IllegalArgumentException.class, MethodArgumentNotValidException.class})
-    public ResponseEntity<Map<String, String>> invalid(Exception e) {
-        return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ProblemDetail> invalid(IllegalArgumentException e) {
+        return problem(HttpStatus.BAD_REQUEST, e.getMessage() == null ? "Invalid request" : e.getMessage());
+    }
+    @ExceptionHandler({MethodArgumentNotValidException.class, HttpMessageNotReadableException.class,
+        MethodArgumentTypeMismatchException.class})
+    public ResponseEntity<ProblemDetail> malformed(Exception e) {
+        return problem(HttpStatus.BAD_REQUEST, "Invalid request body or parameter");
+    }
+    private ResponseEntity<ProblemDetail> problem(HttpStatus status, String detail) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
+        return ResponseEntity.status(status).body(problem);
     }
 }

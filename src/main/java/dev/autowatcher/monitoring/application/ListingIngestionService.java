@@ -44,9 +44,10 @@ public class ListingIngestionService {
             if (firstMatch == 1) {
                 queued += jdbc.update("""
                     INSERT INTO notification_outbox(id,profile_id,listing_id,channel,status,next_attempt_at)
-                    VALUES(?,?,?,'TEST','PENDING',?)
+                    VALUES(?,?,?,?,'PENDING',?)
                     ON CONFLICT(profile_id,listing_id,channel) DO NOTHING
-                    """, UUID.randomUUID().toString(), profile.id().toString(), id.toString(), now);
+                    """, UUID.randomUUID().toString(), profile.id().toString(), id.toString(),
+                    listing.source() == dev.autowatcher.search.domain.SourceType.FAKE ? "TEST" : "TELEGRAM", now);
             }
         }
         return queued;

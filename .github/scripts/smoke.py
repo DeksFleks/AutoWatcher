@@ -8,16 +8,19 @@ import time
 import urllib.error
 import urllib.request
 
+csrf = ""
+
 def request(path, body=None):
     data = None if body is None else json.dumps(body).encode()
     req = urllib.request.Request(
         "http://127.0.0.1:18080" + path,
-        data=data, headers={"Content-Type": "application/json"})
+        data=data, headers={"Content-Type": "application/json", "X-AutoWatcher-CSRF": csrf})
     with urllib.request.urlopen(req, timeout=5) as response:
         return json.load(response)
 
 with tempfile.TemporaryDirectory(prefix="autowatcher-smoke-") as temporary:
     env = dict(os.environ)
+    env["AUTOWATCHER_DATA"] = temporary
     env["AUTOWATCHER_DB"] = str(Path(temporary) / "smoke.db")
     env["AUTOWATCHER_PORT"] = "18080"
     with open(Path(temporary) / "application.log", "w+") as output:
@@ -37,6 +40,7 @@ with tempfile.TemporaryDirectory(prefix="autowatcher-smoke-") as temporary:
                 if time.monotonic() >= deadline:
                     raise RuntimeError("Application did not become healthy")
                 time.sleep(1)
+            csrf = request("/api/v1/session")["csrfToken"]
             profile = request("/api/v1/profiles", {
                 "name": "Smoke BMW",
                 "criteria": {"brand": "BMW", "priceTo": 3000000},

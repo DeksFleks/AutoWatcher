@@ -2,14 +2,23 @@ package dev.autowatcher.source.avito;
 
 import dev.autowatcher.search.domain.SourceType;
 import dev.autowatcher.source.api.*;
+import dev.autowatcher.source.http.*;
+import java.net.URI;
 import java.util.Set;
 import org.springframework.stereotype.Component;
 
 @Component
 public class AvitoSource implements ListingSource {
+    private final PublicPageClient client;
+    private final ListingPageParser parser;
+    public AvitoSource(PublicPageClient client, ListingPageParser parser) { this.client=client; this.parser=parser; }
     @Override public SourceType type() { return SourceType.AVITO; }
     @Override public SourceCapabilities capabilities() { return new SourceCapabilities(Set.of()); }
     @Override public SearchPage search(SourceQuery query) {
-        throw new SourceException("AVITO adapter is not implemented yet");
+        URI url=query.cursor()==null?query.searchUrl():URI.create(query.cursor());
+        PublicPageClient.validateHost(url);
+        if(!url.getHost().endsWith("avito.ru"))
+            throw new SourceException("INVALID_SOURCE_URL: неверная площадка");
+        return parser.parse(client.get(url),url,type());
     }
 }

@@ -18,13 +18,15 @@ public class MonitoringOrchestrator {
     private final List<ListingSource> sources;
     private final ListingIngestionService ingestion;
     private final JdbcTemplate jdbc;
+    private final ProfileMonitoringService configuration;
 
     public MonitoringOrchestrator(SearchProfileService profiles, List<ListingSource> sources,
-                                  ListingIngestionService ingestion, JdbcTemplate jdbc) {
+                                  ListingIngestionService ingestion, JdbcTemplate jdbc, ProfileMonitoringService configuration) {
         this.profiles = profiles;
         this.sources = sources;
         this.ingestion = ingestion;
         this.jdbc = jdbc;
+        this.configuration = configuration;
     }
 
     // One local process, one writer. No database transaction is held during source I/O.
@@ -47,8 +49,8 @@ public class MonitoringOrchestrator {
                 String cursor = null;
                 Set<String> cursors = new HashSet<>();
                 for (int pageNumber = 0; ; pageNumber++) {
-                    if (pageNumber >= 100) throw new SourceException("Source page limit exceeded");
-                    SearchPage page = source.search(new SourceQuery(profile.criteria(), 2, cursor));
+                    if (pageNumber >= 10) throw new SourceException("Source page limit exceeded");
+                    SearchPage page = source.search(new SourceQuery(profile.criteria(), type == SourceType.FAKE ? 2 : 50, cursor, configuration.searchUrl(profileId, type)));
                     if (page == null || page.listings() == null)
                         throw new SourceException("Source returned an invalid page");
                     if (page.listings().stream().anyMatch(l -> l == null || l.source() != type))
@@ -60,8 +62,9 @@ public class MonitoringOrchestrator {
                 }
             } catch (RuntimeException e) {
                 status = "FAILED";
-                error = "Source check failed; see application log";
-                log.warn("Monitoring run {} failed for source {}", runId, type, e);
+                error = e instanceof SourceException || e instanceof IllegalArgumentException
+                    ? e.getMessage() : "Ошибка проверки; см. журнал приложения";
+                log.warn("Monitoring run {} failed for source {}: {}", runId, type, error);
             }
             Instant finished = Instant.now();
             jdbc.update("UPDATE monitoring_runs SET status=?,finished_at=?,error_message=? WHERE id=?",

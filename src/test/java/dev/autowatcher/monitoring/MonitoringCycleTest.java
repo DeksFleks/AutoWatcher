@@ -76,7 +76,7 @@ class MonitoringCycleTest {
             assertTrue(result.next());
             assertEquals(1, result.getInt(1));
         }
-        assertEquals(2, jdbc.queryForObject(
+        assertEquals(3, jdbc.queryForObject(
             "SELECT COUNT(*) FROM flyway_schema_history WHERE success=1 AND type='SQL'", Integer.class));
 
         retention.compactBefore(Instant.now());

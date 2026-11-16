@@ -1,112 +1,93 @@
 # AutoWatcher
 
-Локальный мониторинг автомобильных объявлений: Java 21, Spring Boot 3.5, Maven, SQLite и Flyway.
+Локальное приложение для мониторинга автомобилей: Java 21, Spring Boot, Maven, SQLite и Flyway.
 
-## Фактическое состояние
+## Запуск на Windows без установки Java
 
-Добавлен первый вертикальный срез:
-`SearchProfile → FakeListingSource → MatchingService → SQLite → NotificationOutbox → тестовая доставка`.
+Скачай **AutoWatcher-Windows-x64** из артефактов успешного GitHub Actions, распакуй ZIP
+и запусти AutoWatcher.exe. Пакет включает Java Runtime. Откроется локальная веб-панель.
+Подробности: [Windows](docs/WINDOWS.md).
 
-- REST CRUD профилей и единый формат ошибок Problem Detail.
-- Источник `FAKE` доступен только с Spring-профилем `demo`, возвращает четыре стабильных объявления с пагинацией.
-- UPSERT по `(source, external_id)`, сохранение MATCH / NO_MATCH / UNKNOWN.
-- Только MATCH создаёт outbox. Повторы проверки и изменения цены не создают повторных событий.
-- Запись страницы, результатов сопоставления, первого совпадения и outbox атомарна.
-- История проверок, диагностика ошибок источников и восстановление незавершённых запусков.
-- Тестовая доставка записывает локальную квитанцию; Telegram пока не отправляется.
-- Очистка деталей сохраняет идентификаторы и журнал совпадений, чтобы не терять дедупликацию.
-- Новая Flyway V2; V1 не изменена.
-- Maven Wrapper 3.3.2 / Maven 3.9.9, CI для Java 21 на Windows и Linux.
+## Что можно делать
 
-**Этот срез не является полным пользовательским MVP.** Avito и Auto.ru остаются заглушками.
-Telegram, веб-панель, расписание, настройки частоты, Windows-пакет с Java Runtime ещё не реализованы.
-Полный статус и чеклист: [docs/MVP_STATUS.md](docs/MVP_STATUS.md).
+- Создавать и редактировать фильтры в браузере и Telegram.
+- Выбирать Авито/Авто.ру, сохранять ссылки поисковой выдачи и интервал 1–1440 минут.
+- Запускать проверки вручную или автоматически.
+- Смотреть объявления, UNKNOWN, ошибки источников, историю и очередь отправок.
+- Подключать своего бота и привязывать владельца одноразовой командой /start.
+- Получать новые совпадения; повторять неудачные отправки.
+- Сохранять данные между перезапусками и очищать устаревшие детали без потери дедупликации.
 
-## Сборка и запуск
+**Живые площадки не объявлены проверенными.** Адаптеры читают доступный публичный HTML/JSON-LD,
+уважают robots.txt и сообщают о блокировках/изменении разметки.
+UNKNOWN не отправляется. Контролируемые HTML-тесты не доказывают работоспособность живого сайта.
+Подробный [фактический статус](docs/MVP_STATUS.md).
 
-Для разработки нужен JDK 21 с настроенным `JAVA_HOME`.
-Maven отдельно устанавливать не требуется; первый запуск Wrapper скачивает Maven и зависимости.
+## Разработка
 
-Windows PowerShell:
+JDK 21; Maven скачивает Wrapper.
 
+Windows:
 ```powershell
-.\mvnw.cmd -B -ntp clean verify
-.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=demo"
+.\\mvnw.cmd -B -ntp clean verify
+.\\mvnw.cmd spring-boot:run
 ```
 
-Linux/macOS:
-
+Linux:
 ```sh
 ./mvnw -B -ntp clean verify
-./mvnw spring-boot:run -Dspring-boot.run.profiles=demo
+./mvnw spring-boot:run
 ```
 
-Или после сборки:
+Демо-источник:
 `java -jar target/autowatcher-0.1.0-SNAPSHOT.jar --spring.profiles.active=demo`.
+В панели появится FAKE; он не выполняет сетевые запросы.
 
-Приложение слушает `127.0.0.1:8080`. Проверка: `GET /actuator/health`.
-Данные сохраняются в `./data/autowatcher.db`. Переменные: `AUTOWATCHER_PORT`, `AUTOWATCHER_DB`.
-Для другого пути БД заранее создай его родительскую папку.
-Не запускай несколько экземпляров на одной БД.
+## Данные и обновления
 
-## Проверка полного цикла в PowerShell
+Windows: `%APPDATA%/AutoWatcher`; другие ОС: `~/.autowatcher`.
+Переменные: `AUTOWATCHER_DATA`, `AUTOWATCHER_DB`, `AUTOWATCHER_PORT` (по умолчанию 8080).
+Приложение слушает только 127.0.0.1. Токен бота хранится в локальной БД, через API не возвращается.
+Не коммить папку данных, токены, журналы или персональные данные.
 
-```powershell
-$base = "http://127.0.0.1:8080/api/v1/profiles"
-$body = @{
-  name = "BMW demo"
-  criteria = @{ brand = "BMW"; priceTo = 3000000 }
-  sources = @("FAKE")
-} | ConvertTo-Json -Depth 4
-$profile = Invoke-RestMethod -Method Post -Uri $base -ContentType "application/json" -Body $body
-$id = $profile.id
-Invoke-RestMethod -Method Post -Uri "$base/$id/checks"
-Invoke-RestMethod -Uri "$base/$id/results"
-Invoke-RestMethod -Uri "$base/$id/outbox"
-Invoke-RestMethod -Method Post -Uri "$base/$id/outbox/dispatch-test"
-Invoke-RestMethod -Method Post -Uri "$base/$id/checks"
-Invoke-RestMethod -Uri "$base/$id/outbox"
-```
-
-Ожидается: четыре результата, одно подходящее объявление, один UNKNOWN и два NO_MATCH.
-Outbox содержит одно событие. После тестовой доставки оно имеет статус DELIVERED.
-Повторная проверка не добавляет событие.
-Фиктивные ссылки используют `example.invalid` и не ведут на настоящие объявления.
+Перед обновлением заверши приложение и скопируй папку данных.
+Flyway применяет новые миграции; старые миграции не редактируются.
+Для отката восстанови резервную копию БД вместе с предыдущей версией приложения.
+Одновременный запуск нескольких экземпляров не поддерживается.
 
 ## API
 
-| Метод | Путь | Назначение |
+`GET /api/v1/session` возвращает токен локальной сессии. Для изменяющих запросов передавай
+`X-AutoWatcher-CSRF`. Это требуется и скриптам PowerShell.
+
+| Путь | Методы | Назначение |
 |---|---|---|
-| GET / POST | `/api/v1/profiles` | Список / создание профиля |
-| GET / PUT / DELETE | `/api/v1/profiles/{id}` | Просмотр / редактирование / удаление |
-| PATCH | `/api/v1/profiles/{id}/status` | `{"enabled":true}` |
-| POST | `/api/v1/profiles/{id}/checks` | Синхронная проверка всех выбранных источников |
-| GET | `/api/v1/profiles/{id}/runs` | Последние 100 запусков |
-| GET | `/api/v1/profiles/{id}/results` | Последние 200 результатов |
-| GET | `/api/v1/profiles/{id}/outbox` | Последние 200 событий и тестовые квитанции |
-| POST | `/api/v1/profiles/{id}/outbox/dispatch-test` | Тестовая доставка до 100 событий |
+| /api/v1/profiles | GET, POST | Список и создание |
+| /api/v1/profiles/{id} | GET, PUT, DELETE | CRUD |
+| /api/v1/profiles/{id}/status | PATCH | Включение и пауза |
+| /api/v1/profiles/{id}/monitoring | GET, PUT | Ссылки, интервал, расписание |
+| /api/v1/profiles/{id}/checks/queue | POST | Фоновая проверка |
+| /api/v1/profiles/{id}/checks | POST | Синхронная проверка |
+| /api/v1/profiles/{id}/results | GET | Последние 200 результатов |
+| /api/v1/profiles/{id}/runs | GET | Последние 100 проверок |
+| /api/v1/profiles/{id}/outbox | GET | Последние 200 уведомлений |
+| /api/v1/profiles/{id}/outbox/retry | POST | Повтор DEAD |
+| /api/v1/profiles/{id}/outbox/dispatch-test | POST | Локальный тестовый транспорт |
+| /api/v1/settings | GET | Настройки без секретов |
+| /api/v1/settings/telegram | PUT, DELETE | Токен/отключение |
+| /api/v1/settings/telegram/pair | POST | Новый код привязки |
+| /api/v1/settings/retention | PUT | Срок хранения |
 
-Ошибка источника возвращается в запуске со статусом FAILED; это не успешная пустая выдача.
-Успешные страницы уже зафиксированы, даже если следующая страница завершилась ошибкой.
-Повторная проверка безопасна благодаря идентичности объявлений и журналу совпадений.
-Политика первого среза: при первом совпадении тоже ставить уведомление; новая цена повторно не уведомляет.
+## Проверки
 
-## Проверки и ограничения
+CI: Java 21 на Windows/Linux, SQLite/Flyway, откат транзакций, дедупликация, UNKNOWN,
+Telegram binding/команды/retry на mock API, URL/robots/HTML фикстуры, локальная защита.
+После сборки: запуск JAR, HTTP demo-цикл, Playwright UI и Windows jpackage без системной Java.
+Отдельный публичный PoC не обходит ограничения и сохраняет только диагностический JSON.
 
-Добавлены интеграционные тесты на настоящем SQLite и Flyway, атомарность outbox,
-повторную проверку, UNKNOWN → MATCH, очистку, отключённый профиль, ошибки источника и ошибки API.
-CI также запускает собранный JAR и проверяет полный demo-цикл через HTTP.
+## Политика уведомлений
 
-Проверено в GitHub Actions на Windows и Linux: `clean verify`, 15 тестов без ошибок,
-запуск собранного JAR, health и полный demo-цикл через HTTP.
-[Успешный запуск CI](https://github.com/DeksFleks/AutoWatcher/actions/runs/43976099226)
-для коммита `1a36915d6c63b4e90fd4050838726fad73856b5b`.
-Локальная среда подготовки была недоступна; проверки выполнены на GitHub runners.
-
-Тестовый dispatcher намеренно не выполняет внешнюю доставку: квитанция и подтверждение
-фиксируются одной транзакцией. Для Telegram потребуется отдельный транспорт с retry/backoff
-и обработкой возможной повторной внешней отправки.
-Очистка в этом срезе доступна как `ListingRetentionService.compactBefore(Instant)` и не запускается автоматически.
-Идентификаторы и журналы дедупликации сохраняются бессрочно; это не жёсткое ограничение размера БД.
-
-Не коммить токены, локальные БД и персональные данные.
+Первое совпадение создаёт одно событие на профиль/объявление/канал; изменение цены повторно не уведомляет.
+FAKE использует TEST, реальные источники — TELEGRAM. Без подключённого владельца события ждут в очереди.
+Доставка Telegram at-least-once: при аварии между отправкой и ACK возможен повтор.
+После 10 неудачных попыток событие DEAD можно вернуть в очередь через панель.

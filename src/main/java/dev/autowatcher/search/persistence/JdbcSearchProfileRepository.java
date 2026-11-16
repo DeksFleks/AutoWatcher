@@ -41,6 +41,8 @@ public class JdbcSearchProfileRepository implements SearchProfileRepository {
         return jdbc.query("SELECT * FROM search_profiles WHERE id=?", MAPPER, id.toString()).stream().findFirst();
     }
     @Override public boolean delete(UUID id) {
+        jdbc.update("DELETE FROM requested_checks WHERE profile_id=?", id.toString());
+        jdbc.update("DELETE FROM profile_monitoring WHERE profile_id=?", id.toString());
         jdbc.update("DELETE FROM test_notification_receipts WHERE profile_id=?", id.toString());
         jdbc.update("DELETE FROM listing_matches WHERE profile_id=?", id.toString());
         jdbc.update("DELETE FROM notification_outbox WHERE profile_id=?", id.toString());

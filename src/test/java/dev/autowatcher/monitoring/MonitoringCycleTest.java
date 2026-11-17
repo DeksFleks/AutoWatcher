@@ -44,7 +44,7 @@ class MonitoringCycleTest {
 
     @BeforeEach void reset() {
         for (String table : List.of("test_notification_receipts", "notification_outbox",
-                "listing_matches", "profile_listings", "monitoring_runs", "listings", "search_profiles"))
+                "profile_monitoring", "listing_matches", "profile_listings", "monitoring_runs", "listings", "search_profiles"))
             jdbc.update("DELETE FROM " + table);
     }
 

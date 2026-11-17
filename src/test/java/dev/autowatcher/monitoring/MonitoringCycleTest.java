@@ -93,6 +93,22 @@ class MonitoringCycleTest {
         assertEquals(0, count("monitoring_runs"));
     }
 
+    @Test void currentAutoRuMarkupReachesSqliteAndOutboxWithoutDuplicates() {
+        var profile=profiles.create(new CreateSearchProfileCommand("Ford",new SearchCriteria(
+            "Ford","Focus",2013,2013,600000L,700000L,220000,"Москва"),Set.of(SourceType.AUTO_RU)));
+        org.mockito.Mockito.when(publicPages.get(org.mockito.ArgumentMatchers.any())).thenReturn("""
+            <div data-seo="listing-item"><a class="ListingItemTitle__link"
+            href="/cars/used/sale/ford/focus/1234567890-abcd/">Ford Focus III, 2013, 216 151 км</a>
+            <div class="ListingItemUniversalPrice__title-vqOQR">695 000 ₽</div>
+            <span class="MetroListPlace__regionName">Москва</span></div>
+            """);
+        assertEquals("SUCCEEDED",monitoring.check(profile.id()).getFirst().status());
+        monitoring.check(profile.id());
+        assertEquals(1,count("listings"));
+        assertEquals(1,countWhere("listing_matches","result='MATCH'"));
+        assertEquals(1,count("notification_outbox"));
+    }
+
     @Test void ingestionRollsBackListingMatchAndOutboxTogether() {
         SearchProfile profile = profile();
         CarListing valid = new FakeListingSource()

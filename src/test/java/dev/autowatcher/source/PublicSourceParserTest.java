@@ -58,6 +58,18 @@ class PublicSourceParserTest {
         assertEquals(dev.autowatcher.listing.domain.MatchResult.MATCH,
             new dev.autowatcher.listing.application.MatchingService().match(criteria,car));
     }
+    @Test void htmlCardEnrichmentPreservesStructuredAttributes() {
+        String html="""
+            <script type="application/ld+json">{"@type":"Car","name":"Ford Focus","brand":"Ford",
+            "model":"Focus","vehicleModelDate":"2013","url":"https://www.avito.ru/moskva/car_123456",
+            "offers":{"price":695000,"priceCurrency":"RUR"}}</script>
+            <div data-marker="item"><a data-marker="item-title" href="/moskva/car_123456">Ford Focus</a></div>
+            """;
+        var car=parser.parse(html,URI.create("https://www.avito.ru/rossiya/avtomobili"),SourceType.AVITO).listings().getFirst();
+        assertEquals("Ford",car.brand()); assertEquals("Focus",car.model());
+        assertEquals(2013,car.year()); assertEquals(695000L,car.price());
+        assertNull(car.mileage());
+    }
     @Test void regionalWarningHasActionableError() {
         assertTrue(assertThrows(SourceException.class,()->parser.parse(
             "Сайт не предназначен для вашего региона",URI.create("https://auto.ru/cars/used/"),SourceType.AUTO_RU))

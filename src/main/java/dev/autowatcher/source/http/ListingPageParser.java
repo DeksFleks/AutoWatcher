@@ -51,10 +51,17 @@ public class ListingPageParser {
                 if(place!=null) region=place.text();
                 if(mileage==null && details.contains("Новый")) mileage=0;
             }
-            // Titles are presentation text, not a reliable structured brand/model field.
             CarListing previous=found.get(url.toString());
+            if(previous!=null) {
+                if(brand==null) brand=previous.brand();
+                if(model==null) model=previous.model();
+                if(year==null) year=previous.year();
+                if(value==null) value=previous.price();
+                if(mileage==null) mileage=previous.mileage();
+                if(region==null) region=previous.region();
+            }
             found.put(url.toString(),new CarListing(type,externalId(url),url,title,brand,model,
-                year,value!=null?value:previous==null?null:previous.price(),mileage,region,Instant.now()));
+                year,value,mileage,region,Instant.now()));
         }
         if(found.isEmpty()) {
             String text=doc.text().toLowerCase(Locale.ROOT);
@@ -97,7 +104,15 @@ public class ListingPageParser {
                 if(unit.equals("KMT")||unit.equals("km")) km=integer(digits(mileage.path("value").asText()));
                 String region=node.path("offers").path("availableAtOrFrom").path("address")
                     .path("addressLocality").asText(null);
-                found.put(url.toString(),new CarListing(type,externalId(url),url,title,brand,model,year,price,km,region,Instant.now()));
+                if(previous!=null) {
+                if(brand==null) brand=previous.brand();
+                if(model==null) model=previous.model();
+                if(year==null) year=previous.year();
+                if(value==null) value=previous.price();
+                if(mileage==null) mileage=previous.mileage();
+                if(region==null) region=previous.region();
+            }
+            found.put(url.toString(),new CarListing(type,externalId(url),url,title,brand,model,year,price,km,region,Instant.now()));
             }
         }
         node.elements().forEachRemaining(n->{ if(n.isContainerNode()) visit(n,base,type,found); });

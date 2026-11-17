@@ -34,6 +34,8 @@ class MonitoringCycleTest {
     @Autowired SearchProfileService profiles;
     @Autowired MonitoringOrchestrator monitoring;
     @Autowired ListingIngestionService ingestion;
+    @Autowired MonitoringQueryService queries;
+    @Autowired ProfileMonitoringService configuration;
     @Autowired ListingRetentionService retention;
     @Autowired TestOutboxDispatcher dispatcher;
     @Autowired JdbcTemplate jdbc;
@@ -107,6 +109,23 @@ class MonitoringCycleTest {
         assertEquals(1,count("listings"));
         assertEquals(1,countWhere("listing_matches","result='MATCH'"));
         assertEquals(1,count("notification_outbox"));
+    }
+
+    @Test void resultsCanSelectMatchesBeforeApplyingLimit() {
+        var profile=profile();
+        monitoring.check(profile.id());
+        assertEquals(4,queries.results(profile.id()).size());
+        assertEquals(1,queries.results(profile.id(),dev.autowatcher.listing.domain.MatchResult.MATCH).size());
+        assertEquals(2,queries.results(profile.id(),dev.autowatcher.listing.domain.MatchResult.NO_MATCH).size());
+        assertEquals(1,queries.results(profile.id(),dev.autowatcher.listing.domain.MatchResult.UNKNOWN).size());
+    }
+    @Test void autoRuSearchUsesCriteriaAndRespectsExplicitUrl() {
+        var profile=profiles.create(new CreateSearchProfileCommand("BMW M3",new SearchCriteria(
+            "BMW","M3",null,null,null,null,null,null),Set.of(SourceType.AUTO_RU)));
+        assertEquals("https://auto.ru/cars/bmw/m3/all/",configuration.searchUrl(profile.id(),SourceType.AUTO_RU).toString());
+        configuration.save(profile.id(),new ProfileMonitoringService.Configuration(300,false,null,
+            "https://auto.ru/cars/bmw/m3/used/",null));
+        assertEquals("https://auto.ru/cars/bmw/m3/used/",configuration.searchUrl(profile.id(),SourceType.AUTO_RU).toString());
     }
 
     @Test void ingestionRollsBackListingMatchAndOutboxTogether() {

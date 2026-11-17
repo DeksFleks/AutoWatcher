@@ -53,6 +53,17 @@ public class ProfileMonitoringService {
         if (type == SourceType.FAKE) return null;
         var config = get(id);
         String value = type == SourceType.AVITO ? config.avitoUrl() : config.autoRuUrl();
+        if(value==null && type==SourceType.AUTO_RU) {
+            var criteria=profiles.findById(id).criteria();
+            String brand=criteria.brand()==null?"":criteria.brand().strip().toLowerCase(java.util.Locale.ROOT);
+            String model=criteria.model()==null?"":criteria.model().strip().toLowerCase(java.util.Locale.ROOT);
+            // Canonical Latin identifiers, e.g. /cars/bmw/m3/all/. Other names use site search.
+            if(brand.matches("[a-z0-9]+") && (model.isEmpty() || model.matches("[a-z0-9]+")))
+                return URI.create("https://auto.ru/cars/"+brand+"/"+(model.isEmpty()?"":model+"/")+"all/");
+            String query=((criteria.brand()==null?"":criteria.brand())+" "+(criteria.model()==null?"":criteria.model())).strip();
+            if(!query.isEmpty()) return URI.create("https://auto.ru/cars/all/?query="+
+                java.net.URLEncoder.encode(query,java.nio.charset.StandardCharsets.UTF_8)+"&from=searchline");
+        }
         if (value == null) value = type == SourceType.AVITO
             ? "https://www.avito.ru/rossiya/avtomobili" : "https://auto.ru/cars/used/";
         return URI.create(value);

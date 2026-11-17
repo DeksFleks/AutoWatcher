@@ -22,12 +22,16 @@ public class MonitoringQueryService {
             """, id.toString());
     }
     public List<Map<String, Object>> results(UUID id) {
+        return results(id, null);
+    }
+    public List<Map<String, Object>> results(UUID id, dev.autowatcher.listing.domain.MatchResult result) {
         profiles.findById(id);
         return jdbc.queryForList("""
             SELECT l.*,m.result,m.checked_at FROM listing_matches m
             JOIN listings l ON l.id=m.listing_id WHERE m.profile_id=?
+            AND (? IS NULL OR m.result=?)
             ORDER BY m.checked_at DESC,l.id LIMIT 200
-            """, id.toString());
+            """, id.toString(),result==null?null:result.name(),result==null?null:result.name());
     }
     public List<Map<String, Object>> outbox(UUID id) {
         profiles.findById(id);

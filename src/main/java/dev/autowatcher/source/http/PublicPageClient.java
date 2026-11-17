@@ -68,9 +68,14 @@ public class PublicPageClient {
                 if(status==403 || status==429 || status==401) {
                     long pause=300;
                     try { pause=Long.parseLong(response.headers().firstValue("Retry-After").orElse("300")); }
-                    catch(NumberFormatException ignored) { }
+                    catch(NumberFormatException ignored) {
+                        try { pause=Duration.between(Instant.now(),java.time.ZonedDateTime.parse(
+                            response.headers().firstValue("Retry-After").orElse(""),
+                            java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME).toInstant()).getSeconds(); }
+                        catch(java.time.DateTimeException ignoredDate) { }
+                    }
                     nextAllowed.put(uri.getHost(),Instant.now().plusSeconds(Math.max(60,Math.min(3600,pause))));
-                    throw new SourceException("ACCESS_BLOCKED: HTTP " + status + "; проверка доступа/лимита площадки");
+                    throw new SourceException("ACCESS_BLOCKED: HTTP " + status + "; площадка ограничила доступ. Проверь VPN/прокси; повтор после паузы, а не частыми нажатиями");
                 }
                 if(status!=200) throw new SourceException("SOURCE_HTTP_" + status + ": страница недоступна");
                 byte[] bytes=body.readNBytes(MAX_BYTES+1);

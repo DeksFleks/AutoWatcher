@@ -104,15 +104,7 @@ public class ListingPageParser {
                 if(unit.equals("KMT")||unit.equals("km")) km=integer(digits(mileage.path("value").asText()));
                 String region=node.path("offers").path("availableAtOrFrom").path("address")
                     .path("addressLocality").asText(null);
-                if(previous!=null) {
-                if(brand==null) brand=previous.brand();
-                if(model==null) model=previous.model();
-                if(year==null) year=previous.year();
-                if(value==null) value=previous.price();
-                if(mileage==null) mileage=previous.mileage();
-                if(region==null) region=previous.region();
-            }
-            found.put(url.toString(),new CarListing(type,externalId(url),url,title,brand,model,year,price,km,region,Instant.now()));
+                found.put(url.toString(),new CarListing(type,externalId(url),url,title,brand,model,year,price,km,region,Instant.now()));
             }
         }
         node.elements().forEachRemaining(n->{ if(n.isContainerNode()) visit(n,base,type,found); });

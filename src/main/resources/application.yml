@@ -1,27 +1,45 @@
 server:
   address: 127.0.0.1
   port: ${AUTOWATCHER_PORT:8080}
-
+  shutdown: graceful
 spring:
   application:
     name: autowatcher
+  mvc:
+    problemdetails:
+      enabled: true
   datasource:
-    url: jdbc:sqlite:${AUTOWATCHER_DB:./data/autowatcher.db}
+    url: jdbc:sqlite:${AUTOWATCHER_DB:${autowatcher.data-dir:./data}/autowatcher.db}
     driver-class-name: org.sqlite.JDBC
     hikari:
       maximum-pool-size: 1
-      connection-init-sql: PRAGMA busy_timeout=5000
+      connection-init-sql: PRAGMA foreign_keys=ON
+      data-source-properties:
+        busy_timeout: 5000
   flyway:
     enabled: true
-  thymeleaf:
-    cache: false
-
+  task:
+    scheduling:
+      pool:
+        size: 4
+      shutdown:
+        await-termination: true
+        await-termination-period: 35s
+  lifecycle:
+    timeout-per-shutdown-phase: 40s
 management:
   endpoints:
     web:
       exposure:
         include: health,info
-
+logging:
+  file:
+    name: ${autowatcher.data-dir:./data}/autowatcher.log
+  logback:
+    rollingpolicy:
+      max-file-size: 5MB
+      max-history: 7
+      total-size-cap: 40MB
 app:
-  monitoring:
-    enabled: false
+  background:
+    enabled: true

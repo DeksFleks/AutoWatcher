@@ -9,3 +9,6 @@ data/
 *.db-shm
 *.db-wal
 application-local.yml
+target/
+.mvn/wrapper/maven-wrapper.jar
+.mvn/wrapper/MavenWrapperDownloader.class

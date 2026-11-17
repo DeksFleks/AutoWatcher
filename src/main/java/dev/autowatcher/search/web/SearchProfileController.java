@@ -29,7 +29,7 @@ public class SearchProfileController {
         return service.update(id, command);
     }
     @PatchMapping("/{id}/status")
-    public SearchProfile status(@PathVariable UUID id, @RequestBody StatusRequest request) {
+    public SearchProfile status(@PathVariable UUID id, @Valid @RequestBody StatusRequest request) {
         return service.setEnabled(id, request.enabled());
     }
     @DeleteMapping("/{id}")
@@ -37,5 +37,5 @@ public class SearchProfileController {
         service.delete(id);
         return ResponseEntity.noContent().build();
     }
-    public record StatusRequest(boolean enabled) {}
+    public record StatusRequest(@jakarta.validation.constraints.NotNull Boolean enabled) {}
 }

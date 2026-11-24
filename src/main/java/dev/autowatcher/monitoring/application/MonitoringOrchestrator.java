@@ -46,6 +46,7 @@ public class MonitoringOrchestrator {
             try {
                 ListingSource source = sources.stream().filter(s -> s.type() == type).findFirst()
                     .orElseThrow(() -> new SourceException("Source is unavailable in this configuration"));
+                log.info("Проверка {} профиль={} источник={} фильтр={}",runId,profileId,type,profile.criteria());
                 String cursor = null;
                 Set<String> cursors = new HashSet<>();
                 for (int pageNumber = 0; pageNumber < 10; pageNumber++) {
@@ -56,7 +57,8 @@ public class MonitoringOrchestrator {
                         throw new SourceException("Source returned an invalid page");
                     if (page.listings().stream().anyMatch(l -> l == null || l.source() != type))
                         throw new SourceException("Source returned a listing with an invalid identity");
-                    ingestion.ingest(profile, page.listings());
+                    int queued = ingestion.ingest(profile, page.listings());
+                    log.info("Проверка {} страница={} карточек={} добавлено в очередь={}",runId,pageNumber+1,page.listings().size(),queued);
                     cursor = page.nextCursor();
                     if (cursor == null) break;
                     if (!cursors.add(cursor)) throw new SourceException("Source repeated its cursor");
@@ -65,6 +67,7 @@ public class MonitoringOrchestrator {
                 status = "FAILED";
                 error = e instanceof SourceException || e instanceof IllegalArgumentException
                     ? e.getMessage() : "Ошибка проверки; см. журнал приложения";
+                if (!(e instanceof SourceException || e instanceof IllegalArgumentException)) log.error("Внутренняя ошибка проверки "+runId,e);
                 log.warn("Monitoring run {} failed for source {}: {}", runId, type, error);
             }
             Instant finished = Instant.now();

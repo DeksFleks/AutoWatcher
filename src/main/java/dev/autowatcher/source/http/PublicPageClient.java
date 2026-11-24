@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class PublicPageClient {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(PublicPageClient.class);
     private final HttpClient client;
     public PublicPageClient() {
         this(HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10))
@@ -51,9 +52,11 @@ public class PublicPageClient {
                 .header("User-Agent","AutoWatcher/0.2 (+local personal listing monitor)")
                 .header("Accept", robotsRequest ? "text/plain" : "text/html,application/xhtml+xml").GET().build();
             awaitRequestSlot(uri);
+            log.info("GET {}{} robots={}",uri.getHost(),uri.getPath(),robotsRequest);
             var response=client.send(request,HttpResponse.BodyHandlers.ofInputStream());
             try(InputStream body=response.body()) {
                 int status=response.statusCode();
+                log.info("HTTP {} {}{} тип={} Retry-After={}",status,uri.getHost(),uri.getPath(),response.headers().firstValue("Content-Type").orElse("-"),response.headers().firstValue("Retry-After").orElse("-"));
                 if(robotsRequest && status==404) return "";
                 if(status==301 || status==302 || status==307 || status==308) {
                     URI next=uri.resolve(response.headers().firstValue("Location").orElse(""));
@@ -89,6 +92,7 @@ public class PublicPageClient {
                 }
                 if(status!=200) throw new SourceException("SOURCE_HTTP_" + status + ": страница недоступна");
                 byte[] bytes=body.readNBytes(MAX_BYTES+1);
+                log.info("Прочитано {} байт от {}",bytes.length,uri.getHost());
                 if(bytes.length>MAX_BYTES) throw new SourceException("SOURCE_RESPONSE_TOO_LARGE");
                 String text=uri.getHost().equals("auto.drom.ru") && !robotsRequest
                     ? org.jsoup.Jsoup.parse(new ByteArrayInputStream(bytes), response.headers().firstValue("Content-Type")
@@ -105,6 +109,7 @@ public class PublicPageClient {
         } catch(InterruptedException e) {
             Thread.currentThread().interrupt(); throw new SourceException("Проверка остановлена");
         } catch(IOException e) {
+            log.warn("Сетевая ошибка {} {}",uri.getHost(),e.getClass().getSimpleName());
             throw new SourceException("NETWORK_ERROR: не удалось загрузить страницу; проверь соединение");
         }
     }

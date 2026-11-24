@@ -20,6 +20,15 @@ public class LocalAccessFilter extends OncePerRequestFilter {
     public String token() { return token; }
     @Override protected void doFilterInternal(HttpServletRequest request,HttpServletResponse response,FilterChain chain)
             throws ServletException,IOException {
+        long start=System.nanoTime();
+        try { handle(request,response,chain); }
+        finally {
+            logger.info("Панель "+request.getMethod()+" "+request.getRequestURI()+" HTTP="+response.getStatus()
+                +" время="+(System.nanoTime()-start)/1_000_000+" мс");
+        }
+    }
+    private void handle(HttpServletRequest request,HttpServletResponse response,FilterChain chain)
+            throws ServletException,IOException {
         response.setHeader("X-Content-Type-Options","nosniff");
         response.setHeader("X-Frame-Options","DENY");
         response.setHeader("Referrer-Policy","same-origin");

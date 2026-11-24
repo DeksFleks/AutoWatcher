@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class TelegramOutboxDispatcher {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(TelegramOutboxDispatcher.class);
     private final JdbcTemplate jdbc;
     private final SettingsService settings;
     private final TelegramApi api;
@@ -30,9 +31,16 @@ public class TelegramOutboxDispatcher {
         }
     }
     /** At-least-once delivery. A crash after Telegram accepts but before ACK can repeat a message. */
+    private String lastPause;
     public synchronized int dispatch() {
         String owner=settings.get("telegram_owner",null);
-        if(owner==null||settings.get("telegram_token").isEmpty()) return 0;
+        String pause = settings.get("telegram_token").isEmpty() ? "нет токена" : owner==null ? "чат не привязан" : null;
+        if (pause!=null) {
+            if (!pause.equals(lastPause)) log.info("Очередь Telegram ожидает: {}",pause);
+            lastPause=pause;
+            return 0;
+        }
+        lastPause=null;
         var events=jdbc.queryForList("""
             SELECT o.*,l.title,l.url,l.price,l.mileage,l.source,p.name AS profile_name FROM notification_outbox o
             JOIN listings l ON l.id=o.listing_id JOIN search_profiles p ON p.id=o.profile_id
@@ -44,14 +52,17 @@ public class TelegramOutboxDispatcher {
             String id=event.get("id").toString();
             int attempts=((Number)event.get("attempts")).intValue()+1;
             try {
+                log.info("Отправка события={} профиль={} карточка={} попытка={}",id,event.get("profile_id"),event.get("listing_id"),attempts);
                 api.send(owner,"Новое объявление · "+event.get("profile_name")+" · "+event.get("source")+"\n"+event.get("title")+
                     "\nЦена: "+(event.get("price")==null?"не указана":event.get("price")+" ₽")+(event.get("mileage")==null?"":"\nПробег: "+event.get("mileage")+" км")+"\n"+event.get("url"));
                 jdbc.update("""
                     UPDATE notification_outbox SET status='DELIVERED',delivered_at=?,attempts=?,error_code=NULL
                     WHERE id=? AND status='PENDING'
                     """,Instant.now().toString(),attempts,id);
+                log.info("Telegram подтвердил событие={}",id);
                 delivered++;
             } catch(TelegramApi.Failure e) {
+                log.warn("Событие={} попытка={} ошибка={} статус={}",id,attempts,e.getMessage(),attempts>=10?"DEAD":"PENDING");
                 jdbc.update("""
                     UPDATE notification_outbox SET status=?,attempts=?,error_code=?,next_attempt_at=? WHERE id=?
                     """,attempts>=10?"DEAD":"PENDING",attempts,e.getMessage(),

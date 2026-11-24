@@ -24,7 +24,7 @@ public class ListingPageParser {
             try { visit(json.readTree(script.data()),pageUrl,type,found); }
             catch(java.io.IOException ignored) { /* Other metadata scripts may be malformed. */ }
         }
-        String selector=type==SourceType.AVITO ? "[data-marker=item]" : ".ListingItem";
+        String selector=type==SourceType.AVITO ? "[data-marker=item]" : ".ListingItem, [data-seo=listing-item]";
         for(Element card:doc.select(selector)) {
             Element titleElement=type==SourceType.AVITO ? card.selectFirst("[data-marker=item-title]") : null;
             Element link=type==SourceType.AVITO ? avitoLink(card,titleElement) : card.selectFirst("a.ListingItemTitle__link");
@@ -33,8 +33,8 @@ public class ListingPageParser {
             if(url==null) continue;
             String title=titleElement==null ? link.text() : titleElement.text();
             if(title.isBlank()) title=link.attr("title").strip();
-            if(title.isBlank()) continue;
-            Element price=card.selectFirst(type==SourceType.AVITO ? "[itemprop=price]" : ".ListingItemPrice__content");
+            if(type==SourceType.AVITO && title.isBlank()) continue;
+            Element price=card.selectFirst(type==SourceType.AVITO ? "[itemprop=price]" : ".ListingItemPrice__content, [class*=ListingItemUniversalPrice__title-]");
             if(price==null && type==SourceType.AVITO) price=card.selectFirst("[data-marker=item-price]");
             Long value=price==null ? null : digits(price.hasAttr("content")?price.attr("content"):price.text());
             String details=card.text();
@@ -43,12 +43,34 @@ public class ListingPageParser {
             Matcher km=Pattern.compile("([0-9][0-9\\s\\u00a0]*)\\s*км",Pattern.CASE_INSENSITIVE).matcher(details);
             if(km.find()) mileage=integer(digits(km.group(1)));
             String brand=null,model=null;
-            // Titles are presentation text, not a reliable structured brand/model field.
-            found.putIfAbsent(url.toString(),new CarListing(type,externalId(url),url,title,brand,model,
-                year,value,mileage,null,Instant.now()));
+            String region=null;
+            if(type==SourceType.AUTO_RU) {
+                // Canonical sale paths identify brand/model independently of generation in the title.
+                String[] parts=url.getPath().split("/");
+                if(parts.length>=7 && parts[3].equals("sale")) {
+                    brand=parts[4].replace('_',' ');
+                    model=parts[5].replace('_',' ');
+                }
+                Element place=card.selectFirst(".MetroListPlace__regionName");
+                if(place!=null) region=place.text();
+                if(mileage==null && details.contains("Новый")) mileage=0;
+            }
+            CarListing previous=found.get(url.toString());
+            if(previous!=null) {
+                if(brand==null) brand=previous.brand();
+                if(model==null) model=previous.model();
+                if(year==null) year=previous.year();
+                if(value==null) value=previous.price();
+                if(mileage==null) mileage=previous.mileage();
+                if(region==null) region=previous.region();
+            }
+            found.put(url.toString(),new CarListing(type,externalId(url),url,title,brand,model,
+                year,value,mileage,region,Instant.now()));
         }
         if(found.isEmpty()) {
             String text=doc.text().toLowerCase(Locale.ROOT);
+            if(text.contains("сайт не предназначен для вашего региона"))
+                throw new SourceException("REGION_RESTRICTED: площадка показала региональное предупреждение; проверь VPN и регион подключения");
             if(!text.contains("ничего не найдено") && !text.contains("объявлений не найдено")
                     && !text.contains("нет объявлений"))
                 throw new SourceException("MARKUP_CHANGED: объявления не распознаны; проверь доступность и разметку");
@@ -86,7 +108,7 @@ public class ListingPageParser {
             String title=node.path("name").asText("");
             if(url!=null && !title.isBlank()) {
                 String currency=offer.path("priceCurrency").asText("RUB");
-                Long price="RUB".equalsIgnoreCase(currency)?money(offer.path("price").asText()):null;
+                Long price=Set.of("RUB","RUR").contains(currency.toUpperCase(Locale.ROOT))?money(offer.path("price").asText()):null;
                 String brand=scalar(node.path("brand"));
                 String model=scalar(node.path("model"));
                 Integer year=year(node.path("vehicleModelDate").asText(node.path("productionDate").asText("")));

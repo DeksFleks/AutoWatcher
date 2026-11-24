@@ -70,8 +70,8 @@ async function saveProfile(event){
 }
 async function refreshResults(){
   const container=$("result-list");if(!selected){empty(container,"Сначала создай фильтр поиска");return;}
-  const rows=await api("/profiles/"+selected+"/results");container.replaceChildren();
-  if(!rows.length){empty(container,"Объявлений пока нет. Запусти проверку и посмотри историю.");return;}
+  const rows=await api("/profiles/"+selected+"/results"+($("results-status").value?"?result="+$("results-status").value:""));container.replaceChildren();
+  if(!rows.length){empty(container,"Объявлений в этой категории пока нет. Запусти проверку или выбери «Все проверенные».");return;}
   for(const r of rows){
     const card=node("article",undefined,"card result");const left=node("div");left.append(badge(r.result));
     const title=node("h3");const link=node("a",r.title);try{const url=new URL(r.url);if(url.protocol==="https:"){link.href=url.href;link.target="_blank";link.rel="noreferrer";}}catch(e){}
@@ -105,3 +105,5 @@ $("copy-pair").addEventListener("click",()=>action(async()=>{await navigator.cli
 $("retention-form").addEventListener("submit",e=>{e.preventDefault();action(async()=>{await api("/settings/retention","PUT",{days:Number(e.target.elements.days.value)});notice("Срок хранения сохранён");});});
 action(async()=>{const session=await api("/session");csrf=session.csrfToken;demo=session.demo;$("fake-option").hidden=!demo;await refreshProfiles();$("connection").textContent=demo?"ДЕМО-РЕЖИМ":"ЛОКАЛЬНО";});
 setInterval(()=>action(async()=>{if($("profile-form").hidden)await refreshProfiles();if(currentTab==="results")await refreshResults();if(currentTab==="history")await refreshHistory();if(currentTab==="settings")await refreshSettings(false);}),5000);
+
+$("results-status").addEventListener("change",()=>action(refreshResults));

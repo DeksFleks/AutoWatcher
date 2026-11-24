@@ -48,10 +48,9 @@ public class MonitoringOrchestrator {
                     .orElseThrow(() -> new SourceException("Source is unavailable in this configuration"));
                 String cursor = null;
                 Set<String> cursors = new HashSet<>();
-                for (int pageNumber = 0; ; pageNumber++) {
+                for (int pageNumber = 0; pageNumber < 10; pageNumber++) {
                     if(!profiles.findById(profileId).enabled())
                         throw new SourceException("Профиль выключен; проверка остановлена");
-                    if (pageNumber >= 10) throw new SourceException("Source page limit exceeded");
                     SearchPage page = source.search(new SourceQuery(profile.criteria(), type == SourceType.FAKE ? 2 : 50, cursor, configuration.searchUrl(profileId, type)));
                     if (page == null || page.listings() == null)
                         throw new SourceException("Source returned an invalid page");

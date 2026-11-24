@@ -50,7 +50,7 @@ public class ProfileMonitoringService {
             """, id.toString(),Instant.now().toString());
     }
     public URI searchUrl(UUID id, SourceType type) {
-        if (type == SourceType.FAKE) return null;
+        if (type != SourceType.AVITO && type != SourceType.AUTO_RU) return null;
         var config = get(id);
         String value = type == SourceType.AVITO ? config.avitoUrl() : config.autoRuUrl();
         if(value==null && type==SourceType.AUTO_RU) {

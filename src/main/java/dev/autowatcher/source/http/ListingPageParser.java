@@ -133,7 +133,7 @@ public class ListingPageParser {
             URI url=base.resolve(value);
             PublicPageClient.validateHost(url);
             boolean avito=url.getHost().endsWith("avito.ru");
-            if((type==SourceType.AVITO)!=avito) return null;
+            if(type==SourceType.AVITO ? !avito : !Set.of("auto.ru","www.auto.ru").contains(url.getHost())) return null;
             return new URI(url.getScheme(),null,url.getHost(),-1,url.getPath(),null,null);
         } catch(Exception e) { return null; }
     }

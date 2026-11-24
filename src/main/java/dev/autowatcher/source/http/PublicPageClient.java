@@ -90,7 +90,10 @@ public class PublicPageClient {
                 if(status!=200) throw new SourceException("SOURCE_HTTP_" + status + ": страница недоступна");
                 byte[] bytes=body.readNBytes(MAX_BYTES+1);
                 if(bytes.length>MAX_BYTES) throw new SourceException("SOURCE_RESPONSE_TOO_LARGE");
-                String text=new String(bytes,StandardCharsets.UTF_8);
+                String text=uri.getHost().equals("auto.drom.ru") && !robotsRequest
+                    ? org.jsoup.Jsoup.parse(new ByteArrayInputStream(bytes), response.headers().firstValue("Content-Type")
+                        .filter(v -> v.toLowerCase(Locale.ROOT).contains("windows-1251")).map(v -> "windows-1251").orElse(null),uri.toString()).outerHtml()
+                    : new String(bytes,StandardCharsets.UTF_8);
                 String lower=text.toLowerCase(Locale.ROOT);
                 if(!robotsRequest && (lower.contains("smartcaptcha") || lower.contains("captcha-container")
                         || lower.contains("доступ временно ограничен") || lower.contains("подтвердите, что вы не робот")))
@@ -106,7 +109,7 @@ public class PublicPageClient {
     }
     public static void validateHost(URI uri) {
         if(uri==null || !"https".equalsIgnoreCase(uri.getScheme()) || uri.getUserInfo()!=null
-                || uri.getPort()!=-1 || !Set.of("avito.ru","www.avito.ru","auto.ru","www.auto.ru").contains(uri.getHost()))
+                || uri.getPort()!=-1 || !Set.of("avito.ru","www.avito.ru","auto.ru","www.auto.ru","auto.drom.ru","avtomir.ru","www.tts.ru","www.major-expert.ru","borishof.ru","maximum-auto.ru").contains(uri.getHost()))
             throw new SourceException("INVALID_SOURCE_URL: нужна ссылка выбранной площадки");
     }
     private record CachedRobots(String text, Instant expires) {}

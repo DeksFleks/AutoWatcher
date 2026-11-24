@@ -95,7 +95,8 @@ public class PublicPageClient {
                         .filter(v -> v.toLowerCase(Locale.ROOT).contains("windows-1251")).map(v -> "windows-1251").orElse(null),uri.toString()).outerHtml()
                     : new String(bytes,StandardCharsets.UTF_8);
                 String lower=text.toLowerCase(Locale.ROOT);
-                if(!robotsRequest && (lower.contains("smartcaptcha") || lower.contains("captcha-container")
+                if(!robotsRequest && (lower.contains("smartcaptcha") || lower.contains("captcha-container") &&
+                        !(uri.getHost().equals("avtomir.ru") && !org.jsoup.Jsoup.parse(text).select(".card_big a.card__name[href^=/used-cars/]").isEmpty())
                         || lower.contains("доступ временно ограничен") || lower.contains("подтвердите, что вы не робот")))
                     throw new SourceException("CAPTCHA_REQUIRED: площадка требует ручную проверку доступа");
                 if (!robotsRequest) avitoRateLimits.remove(uri.getHost().replaceFirst("^www\\.", ""));

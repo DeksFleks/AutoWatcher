@@ -26,12 +26,16 @@ public class ListingPageParser {
         }
         String selector=type==SourceType.AVITO ? "[data-marker=item]" : ".ListingItem";
         for(Element card:doc.select(selector)) {
-            Element link=card.selectFirst(type==SourceType.AVITO ? "a[data-marker=item-title]" : "a.ListingItemTitle__link");
+            Element titleElement=type==SourceType.AVITO ? card.selectFirst("[data-marker=item-title]") : null;
+            Element link=type==SourceType.AVITO ? avitoLink(card,titleElement) : card.selectFirst("a.ListingItemTitle__link");
             if(link==null) continue;
             URI url=safeResolve(pageUrl,link.attr("href"),type);
             if(url==null) continue;
-            String title=link.text().strip();
+            String title=titleElement==null ? link.text() : titleElement.text();
+            if(title.isBlank()) title=link.attr("title").strip();
+            if(title.isBlank()) continue;
             Element price=card.selectFirst(type==SourceType.AVITO ? "[itemprop=price]" : ".ListingItemPrice__content");
+            if(price==null && type==SourceType.AVITO) price=card.selectFirst("[data-marker=item-price]");
             Long value=price==null ? null : digits(price.hasAttr("content")?price.attr("content"):price.text());
             String details=card.text();
             Integer year=year(details);
@@ -61,16 +65,26 @@ public class ListingPageParser {
         }
         return new SearchPage(List.copyOf(found.values()),nextUrl==null?null:nextUrl.toString());
     }
+    private Element avitoLink(Element card, Element title) {
+        if(title!=null) {
+            Element enclosing=title.closest("a[href]");
+            if(enclosing!=null && card.getAllElements().contains(enclosing)) return enclosing;
+            Element nested=title.selectFirst("a[href]");
+            if(nested!=null) return nested;
+        }
+        return card.selectFirst("a[itemprop=url][href]");
+    }
     private void visit(JsonNode node, URI base, SourceType type, Map<String,CarListing> found) {
         if(node==null) return;
         if(node.isArray()) { node.forEach(n->visit(n,base,type,found)); return; }
         if(!node.isObject()) return;
         String kind=node.path("@type").asText();
         if(Set.of("Car","Vehicle","Product").contains(kind) && node.has("offers")) {
-            URI url=safeResolve(base,node.path("url").asText(node.path("offers").path("url").asText("")),type);
+            JsonNode offer=node.path("offers");
+            if(offer.isArray()) offer=offer.path(0);
+            URI url=safeResolve(base,node.path("url").asText(offer.path("url").asText("")),type);
             String title=node.path("name").asText("");
             if(url!=null && !title.isBlank()) {
-                JsonNode offer=node.path("offers"); if(offer.isArray()) offer=offer.path(0);
                 String currency=offer.path("priceCurrency").asText("RUB");
                 Long price="RUB".equalsIgnoreCase(currency)?money(offer.path("price").asText()):null;
                 String brand=scalar(node.path("brand"));

@@ -29,9 +29,62 @@ class PublicSourceParserTest {
         assertThrows(SourceException.class,()->parser.parse("<html>Challenge</html>",URI.create("https://auto.ru/cars/used/"),SourceType.AUTO_RU));
         assertTrue(parser.parse("<html>Ничего не найдено</html>",URI.create("https://auto.ru/cars/used/"),SourceType.AUTO_RU).listings().isEmpty());
     }
+    @Test void parsesAvitoTitleInsideLinkAndVisiblePrice() {
+        String html="""
+            <div data-marker="item"><a href="/moskva/avtomobili/bmw_123456">
+              <h3 data-marker="item-title">BMW X5, 2021</h3></a>
+              <span data-marker="item-price">2 500 000 ₽</span></div>
+            """;
+        var listings=parser.parse(html,URI.create("https://www.avito.ru/"),SourceType.AVITO).listings();
+        assertEquals(1,listings.size());
+        assertEquals("BMW X5, 2021",listings.getFirst().title());
+        assertEquals(2500000L,listings.getFirst().price());
+    }
     @Test void hostileListingLinksAreIgnored() {
         String html="<div data-marker='item'><a data-marker='item-title' href='https://evil.test/car'>BMW</a></div>";
         assertThrows(SourceException.class,()->parser.parse(html,URI.create("https://www.avito.ru/"),SourceType.AVITO));
+    }
+    @Test void parsesCurrentAutoRuCardWithHashedClasses() {
+        String html="""
+            <script type="application/ld+json">
+            {"@type":"Product","name":"Продажа автомобилей FORD","offers":{"@type":"AggregateOffer","offers":[
+            {"@type":"Offer","url":"https://auto.ru/cars/used/sale/ford/focus/1234567890-abcd/",
+             "image":{"name":"Ford Focus III"},"price":695000,"priceCurrency":"RUR"}]}}
+            </script>
+            <div data-seo="listing-item"><a class="ListingItemTitle__link"
+            href="/cars/used/sale/ford/focus/1234567890-abcd/">Ford Focus III, 2013, 216 151 км</a>
+            <div class="ListingItemUniversalPrice__title-vqOQR">695 000 ₽</div>
+            <span class="MetroListPlace__regionName">Москва</span></div>
+            <a class="ListingPagination__next" href="?page=2">Следующая</a>
+            """;
+        var page=parser.parse(html,URI.create("https://auto.ru/cars/ford/all/"),SourceType.AUTO_RU);
+        var car=page.listings().getFirst();
+        assertEquals(1,page.listings().size());
+        assertEquals("ford",car.brand()); assertEquals("focus",car.model());
+        assertEquals(2013,car.year()); assertEquals(216151,car.mileage());
+        assertEquals(695000L,car.price()); assertEquals("Москва",car.region());
+        assertEquals("1234567890",car.externalId());
+        assertEquals("https://auto.ru/cars/ford/all/?page=2",page.nextCursor());
+        var criteria=new dev.autowatcher.search.domain.SearchCriteria("Ford","Focus",2013,2013,695000L,695000L,216151,"Москва");
+        assertEquals(dev.autowatcher.listing.domain.MatchResult.MATCH,
+            new dev.autowatcher.listing.application.MatchingService().match(criteria,car));
+    }
+    @Test void htmlCardEnrichmentPreservesStructuredAttributes() {
+        String html="""
+            <script type="application/ld+json">{"@type":"Car","name":"Ford Focus","brand":"Ford",
+            "model":"Focus","vehicleModelDate":"2013","url":"https://www.avito.ru/moskva/car_123456",
+            "offers":{"price":695000,"priceCurrency":"RUR"}}</script>
+            <div data-marker="item"><a data-marker="item-title" href="/moskva/car_123456">Ford Focus</a></div>
+            """;
+        var car=parser.parse(html,URI.create("https://www.avito.ru/rossiya/avtomobili"),SourceType.AVITO).listings().getFirst();
+        assertEquals("Ford",car.brand()); assertEquals("Focus",car.model());
+        assertEquals(2013,car.year()); assertEquals(695000L,car.price());
+        assertNull(car.mileage());
+    }
+    @Test void regionalWarningHasActionableError() {
+        assertTrue(assertThrows(SourceException.class,()->parser.parse(
+            "Сайт не предназначен для вашего региона",URI.create("https://auto.ru/cars/used/"),SourceType.AUTO_RU))
+            .getMessage().startsWith("REGION_RESTRICTED"));
     }
     @Test void robotsLongestRuleAndGroups() {
         String robots="User-agent: *\nDisallow: /cars\nAllow: /cars/public\nUser-agent: Other\nDisallow: /";

@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ListingIngestionService {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ListingIngestionService.class);
     private final ListingRepository listings;
     private final MatchingService matching;
     private final JdbcTemplate jdbc;
@@ -36,11 +37,13 @@ public class ListingIngestionService {
                 ON CONFLICT(profile_id,listing_id) DO UPDATE SET
                     result=excluded.result,checked_at=excluded.checked_at
                 """, profile.id().toString(), id.toString(), result.name(), now);
+            log.info("Профиль={} карточка={} источник={} название={} год={} цена={} пробег={} регион={} результат={}",profile.id(),id,listing.source(),listing.title(),listing.year(),listing.price(),listing.mileage(),listing.region(),result);
             if (result != MatchResult.MATCH) continue;
             int firstMatch = jdbc.update("""
                 INSERT INTO profile_listings(profile_id,listing_id,first_matched_at) VALUES(?,?,?)
                 ON CONFLICT(profile_id,listing_id) DO NOTHING
                 """, profile.id().toString(), id.toString(), now);
+            if (firstMatch == 0) log.info("Уведомление пропущено: повторное совпадение профиль={} карточка={}", profile.id(),id);
             if (firstMatch == 1) {
                 queued += jdbc.update("""
                     INSERT INTO notification_outbox(id,profile_id,listing_id,channel,status,next_attempt_at)

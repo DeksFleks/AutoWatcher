@@ -21,9 +21,12 @@ public class AutoWatcherApplication {
         try { Files.setPosixFilePermissions(directory,PosixFilePermissions.fromString("rwx------")); }
         catch(UnsupportedOperationException ignored) { }
         System.setProperty("autowatcher.data-dir",directory.toAbsolutePath().toString());
+        Files.writeString(directory.resolve("LogFile.log"),System.lineSeparator()+java.time.Instant.now()
+            +" Старт PID="+ProcessHandle.current().pid()+" программа="+AutoWatcherApplication.class.getProtectionDomain().getCodeSource().getLocation()
+            +System.lineSeparator(),StandardOpenOption.CREATE,StandardOpenOption.APPEND);
         lockChannel=FileChannel.open(directory.resolve("application.lock"),StandardOpenOption.CREATE,StandardOpenOption.WRITE);
         lock=lockChannel.tryLock();
-        if(lock==null) throw new IllegalStateException("AutoWatcher уже запущен. Открой http://127.0.0.1:8080");
+        if(lock==null) { Files.writeString(directory.resolve("LogFile.log"),"Запуск отменён: уже работает другой экземпляр AutoWatcher"+System.lineSeparator(),StandardOpenOption.APPEND); throw new IllegalStateException("AutoWatcher уже запущен. Открой http://127.0.0.1:8080"); }
         Runtime.getRuntime().addShutdownHook(new Thread(()->{
             try { lock.release();lockChannel.close(); } catch(Exception ignored) { }
         }));

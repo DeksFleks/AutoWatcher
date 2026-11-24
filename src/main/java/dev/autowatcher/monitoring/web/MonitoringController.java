@@ -26,7 +26,8 @@ public class MonitoringController {
     @GetMapping("/runs")
     public List<Map<String, Object>> runs(@PathVariable UUID id) { return queries.runs(id); }
     @GetMapping("/results")
-    public List<Map<String, Object>> results(@PathVariable UUID id) { return queries.results(id); }
+    public List<Map<String, Object>> results(@PathVariable UUID id,
+        @RequestParam(required=false) dev.autowatcher.listing.domain.MatchResult result) { return queries.results(id,result); }
     @GetMapping("/outbox")
     public List<Map<String, Object>> outbox(@PathVariable UUID id) { return queries.outbox(id); }
     @PostMapping("/outbox/dispatch-test")

@@ -56,7 +56,7 @@ public class PublicPageClient {
             var response=client.send(request,HttpResponse.BodyHandlers.ofInputStream());
             try(InputStream body=response.body()) {
                 int status=response.statusCode();
-                log.info("HTTP {} {}{} тип={} Retry-After={}",status,uri.getHost(),uri.getPath(),response.headers().firstValue("Content-Type").orElse("-"),response.headers().firstValue("Retry-After").orElse("-"));
+                log.info("HTTP {} {}{} тип={} Retry-After={}",status,uri.getHost(),uri.getPath(),response.headers()==null?"-":response.headers().firstValue("Content-Type").orElse("-"),response.headers()==null?"-":response.headers().firstValue("Retry-After").orElse("-"));
                 if(robotsRequest && status==404) return "";
                 if(status==301 || status==302 || status==307 || status==308) {
                     URI next=uri.resolve(response.headers().firstValue("Location").orElse(""));

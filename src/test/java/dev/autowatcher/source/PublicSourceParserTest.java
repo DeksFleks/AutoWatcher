@@ -29,6 +29,17 @@ class PublicSourceParserTest {
         assertThrows(SourceException.class,()->parser.parse("<html>Challenge</html>",URI.create("https://auto.ru/cars/used/"),SourceType.AUTO_RU));
         assertTrue(parser.parse("<html>Ничего не найдено</html>",URI.create("https://auto.ru/cars/used/"),SourceType.AUTO_RU).listings().isEmpty());
     }
+    @Test void parsesAvitoTitleInsideLinkAndVisiblePrice() {
+        String html="""
+            <div data-marker="item"><a href="/moskva/avtomobili/bmw_123456">
+              <h3 data-marker="item-title">BMW X5, 2021</h3></a>
+              <span data-marker="item-price">2 500 000 ₽</span></div>
+            """;
+        var listings=parser.parse(html,URI.create("https://www.avito.ru/"),SourceType.AVITO).listings();
+        assertEquals(1,listings.size());
+        assertEquals("BMW X5, 2021",listings.getFirst().title());
+        assertEquals(2500000L,listings.getFirst().price());
+    }
     @Test void hostileListingLinksAreIgnored() {
         String html="<div data-marker='item'><a data-marker='item-title' href='https://evil.test/car'>BMW</a></div>";
         assertThrows(SourceException.class,()->parser.parse(html,URI.create("https://www.avito.ru/"),SourceType.AVITO));

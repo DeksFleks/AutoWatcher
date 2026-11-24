@@ -85,7 +85,7 @@ async function refreshHistory(){
   if(!selected){empty($("run-list"),"Сначала создай фильтр");$("outbox-list").replaceChildren();return;}
   const [runs,outbox]=await Promise.all([api("/profiles/"+selected+"/runs"),api("/profiles/"+selected+"/outbox")]);
   if(runs.length)table($("run-list"),["Когда","Площадка","Статус","Подробности"],runs.map(r=>[new Date(r.started_at).toLocaleString("ru"),r.source,badge(r.status),r.error_message||""]));else empty($("run-list"),"Проверок пока нет");
-  table($("outbox-list"),["Канал","Статус","Попыток","Подробности"],outbox.map(o=>[o.channel,badge(o.status),o.attempts,o.error_code||""]));
+  table($("outbox-list"),["Объявление","Канал","Статус","Попыток","Следующая попытка","Подробности"],outbox.map(o=>[o.title||"—",o.channel,badge(o.status),o.attempts,o.status==="PENDING"&&o.attempts>0?new Date(o.next_attempt_at).toLocaleString():"—",o.error_code||""]));
 }
 async function refreshSettings(includeRetention=true){const s=await api("/settings");$("telegram-status").textContent=(s.telegramConfigured?"Токен сохранён. ":"")+s.telegramStatus;if(includeRetention)$("retention-form").elements.days.value=s.retentionDays;}
 function showPair(value){$("pair-command").textContent=value.command;$("pairing").hidden=false;notice("Токен сохранён. Отправь команду своему боту.");}
@@ -99,6 +99,14 @@ $("check-selected").addEventListener("click",()=>action(async()=>{if(!selected)r
 $("refresh-history").addEventListener("click",()=>action(refreshHistory));
 $("retry-notifications").addEventListener("click",()=>action(async()=>{if(selected){await api("/profiles/"+selected+"/outbox/retry","POST");notice("Неудачные отправки возвращены в очередь");await refreshHistory();}}));
 $("telegram-form").addEventListener("submit",e=>{e.preventDefault();action(async()=>{showPair(await api("/settings/telegram","PUT",{token:e.target.elements.token.value}));e.target.reset();await refreshSettings();});});
+$("telegram-test").addEventListener("click",event=>action(async()=>{
+  const button=event.currentTarget;
+  button.disabled=true;
+  try {
+    await api("/settings/telegram/test","POST");
+    notice("Telegram принял тестовое сообщение. Проверь личный чат с ботом.");
+  } finally { button.disabled=false; }
+}));
 $("pair-again").addEventListener("click",()=>action(async()=>showPair(await api("/settings/telegram/pair","POST"))));
 $("disconnect-telegram").addEventListener("click",()=>action(async()=>{await api("/settings/telegram","DELETE");$("pairing").hidden=true;await refreshSettings();notice("Telegram отключён");}));
 $("copy-pair").addEventListener("click",()=>action(async()=>{await navigator.clipboard.writeText($("pair-command").textContent);notice("Команда скопирована");}));

@@ -38,6 +38,8 @@ public class SettingsController {
     public Map<String,Object> token(@RequestBody Token value) { return telegram.configure(value.token()); }
     @PostMapping("/settings/telegram/pair")
     public Map<String,Object> pair() { return telegram.pair(); }
+    @PostMapping("/settings/telegram/test")
+    public void testNotification() { dispatcher.sendTest(); }
     @DeleteMapping("/settings/telegram")
     public void disconnect() { settings.disconnectTelegram(); }
     public record Retention(int days) {}

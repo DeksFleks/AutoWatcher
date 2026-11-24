@@ -36,7 +36,8 @@ public class MonitoringQueryService {
     public List<Map<String, Object>> outbox(UUID id) {
         profiles.findById(id);
         return jdbc.queryForList("""
-            SELECT o.*,r.received_at AS test_received_at FROM notification_outbox o
+            SELECT o.*,l.title,r.received_at AS test_received_at FROM notification_outbox o
+            LEFT JOIN listings l ON l.id=o.listing_id
             LEFT JOIN test_notification_receipts r ON r.outbox_id=o.id
             WHERE o.profile_id=? ORDER BY o.next_attempt_at DESC,o.id LIMIT 200
             """, id.toString());
